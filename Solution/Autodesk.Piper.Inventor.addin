@@ -1,0 +1,14 @@
+<Addin Type="Standard">
+  <!--Created for Autodesk Inventor Version 25.0-->
+  <ClassId>{56761c4d-8dad-41ef-ad69-b59cd902ac1c}</ClassId>
+  <ClientId>{56761c4d-8dad-41ef-ad69-b59cd902ac1c}</ClientId>
+  <DisplayName>Piper</DisplayName>
+  <Description>Piper</Description>
+  <Assembly>Piper.dll</Assembly>
+  <LoadOnStartUp>1</LoadOnStartUp>
+  <UserUnloadable>1</UserUnloadable>
+  <Hidden>0</Hidden>
+  <SupportedSoftwareVersionGreaterThan>24..</SupportedSoftwareVersionGreaterThan>
+  <DataVersion>1</DataVersion>
+  <UserInterfaceVersion>1</UserInterfaceVersion>
+</Addin>

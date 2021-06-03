@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+
+<assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
+
+  <assemblyIdentity name="Piper" version="1.0.0.0"></assemblyIdentity>
+
+  <clrClass clsid="{56761c4d-8dad-41ef-ad69-b59cd902ac1c}" progid="Piper.StandardAddInServer" threadingModel="Both" name="Piper.Piper.StandardAddInServer" runtimeVersion=""></clrClass>
+
+  <file name="Piper.dll" hashalg="SHA1"></file>
+
+</assembly>
