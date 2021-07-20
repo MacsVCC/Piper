@@ -9,7 +9,8 @@ Namespace Piper
         Implements Inventor.ApplicationAddInServer
 
         Private WithEvents m_uiEvents As UserInterfaceEvents
-        Private WithEvents m_sampleButton As ButtonDefinition
+        Private WithEvents m_PiperButton As ButtonDefinition
+        Private WithEvents m_BulkPDF As ButtonDefinition
 
 #Region "ApplicationAddInServer Members"
 
@@ -18,18 +19,20 @@ Namespace Piper
         ' the first time. However, with the introduction of the ribbon this argument is always true.
         Public Sub Activate(ByVal addInSiteObject As Inventor.ApplicationAddInSite, ByVal firstTime As Boolean) Implements Inventor.ApplicationAddInServer.Activate
             ' Initialize AddIn members.
-            g_inventorApplication = addInSiteObject.Application
+            InvApp = addInSiteObject.Application
 
             ' Connect to the user-interface events to handle a ribbon reset.
-            m_uiEvents = g_inventorApplication.UserInterfaceManager.UserInterfaceEvents
+            m_uiEvents = InvApp.UserInterfaceManager.UserInterfaceEvents
 
             ' TODO: Add button definitions.
 
             ' Sample to illustrate creating a button definition.
-            Dim largeIcon As stdole.IPictureDisp = PictureDispConverter.ToIPictureDisp(My.Resources.PipeIcon)
+            Dim PiperIcon As stdole.IPictureDisp = PictureDispConverter.ToIPictureDisp(My.Resources.PipeIcon)
+            Dim BulkIcon As stdole.IPictureDisp = PictureDispConverter.ToIPictureDisp(My.Resources.PDF)
             'Dim smallIcon As stdole.IPictureDisp = PictureDispConverter.ToIPictureDisp(My.Resources.YourSmallImage)
-            Dim controlDefs As Inventor.ControlDefinitions = g_inventorApplication.CommandManager.ControlDefinitions
-            m_sampleButton = controlDefs.AddButtonDefinition("Auto Sweep", "Act_ivate", CommandTypesEnum.kShapeEditCmdType, AddInClientID, , , largeIcon, largeIcon)
+            Dim controlDefs As Inventor.ControlDefinitions = InvApp.CommandManager.ControlDefinitions
+            m_PiperButton = controlDefs.AddButtonDefinition("Auto Sweep", "Act_ivate", CommandTypesEnum.kShapeEditCmdType, AddInClientID, , , PiperIcon, PiperIcon)
+            m_BulkPDF = controlDefs.AddButtonDefinition("Bulk PDF", "BulkPDF", CommandTypesEnum.kShapeEditCmdType, AddInClientID, , , BulkIcon, BulkIcon)
 
             ' Add to the user interface, if it's the first time.
             If firstTime Then
@@ -45,7 +48,7 @@ Namespace Piper
 
             ' Release objects.
             m_uiEvents = Nothing
-            g_inventorApplication = Nothing
+            InvApp = Nothing
 
             System.GC.Collect()
             System.GC.WaitForPendingFinalizers()
@@ -76,16 +79,31 @@ Namespace Piper
             '** Sample to illustrate creating a button on a new panel of the Tools tab of the Part ribbon.
 
             '' Get the part ribbon.
-            Dim partRibbon As Ribbon = g_inventorApplication.UserInterfaceManager.Ribbons.Item("Part")
+            Dim partRibbon As Ribbon = InvApp.UserInterfaceManager.Ribbons.Item("Part")
+            Dim assyRibbon As Ribbon = InvApp.UserInterfaceManager.Ribbons.Item("Assembly")
+            Dim drgRibbon As Ribbon = InvApp.UserInterfaceManager.Ribbons.Item("Drawing")
 
             '' Get the "Tools" tab.
-            Dim toolsTab As RibbonTab = partRibbon.RibbonTabs.Item("id_TabTools")
+            Dim parttoolsTab As RibbonTab = partRibbon.RibbonTabs.Item("id_TabTools")
+            Dim assytoolsTab As RibbonTab = assyRibbon.RibbonTabs.Item("id_TabTools")
+            Dim drgtoolsTab As RibbonTab = drgRibbon.RibbonTabs.Item("id_TabTools")
 
             '' Create a new panel.
-            Dim customPanel As RibbonPanel = toolsTab.RibbonPanels.Add("MH Tools", "MHCustom", AddInClientID)
+            Dim partcustomPanel As RibbonPanel = parttoolsTab.RibbonPanels.Add("MH Tools", "MHCustomPart", AddInClientID)
+            Dim assycustomPanel As RibbonPanel = assytoolsTab.RibbonPanels.Add("MH Tools", "MHCustomAssy", AddInClientID)
+            Dim drgcustomPanel As RibbonPanel = drgtoolsTab.RibbonPanels.Add("MH Tools", "MHCustomDrg", AddInClientID)
+
 
             '' Add a button.
-            customPanel.CommandControls.AddButton(m_sampleButton, True)
+            partcustomPanel.CommandControls.AddButton(m_PiperButton, True)
+            partcustomPanel.CommandControls.AddButton(m_BulkPDF, True)
+
+            'assycustomPanel.CommandControls.AddButton(m_PiperButton, True)
+            assycustomPanel.CommandControls.AddButton(m_BulkPDF, True)
+
+            'drgcustomPanel.CommandControls.AddButton(m_PiperButton, True)
+            drgcustomPanel.CommandControls.AddButton(m_BulkPDF, True)
+
         End Sub
 
         Private Sub m_uiEvents_OnResetRibbonInterface(Context As NameValueMap) Handles m_uiEvents.OnResetRibbonInterface
@@ -94,178 +112,14 @@ Namespace Piper
         End Sub
 
         ' Sample handler for the button.
-        Private Sub m_sampleButton_OnExecute(Context As NameValueMap) Handles m_sampleButton.OnExecute
-            Console.WriteLine("Button was clicked.")
-
-            Dim partDoc As Inventor.PartDocument
-            If g_inventorApplication.ActiveDocumentType = DocumentTypeEnum.kPartDocumentObject Then
-                partDoc = g_inventorApplication.ActiveDocument
-            Else
-                MsgBox("Current document is not a Part document")
-                Exit Sub
-            End If
-
-            Console.WriteLine(partDoc.SelectSet.Count & " selected object(s)")
-
-            If partDoc.SelectSet.Count <> 1 Then
-                MsgBox("Select one point to begin")
-                Exit Sub
-            End If
-
-            Dim TPoint As Object = partDoc.SelectSet(1)
-            Dim TLine As Object = Nothing
-
-            If TPoint.Type = ObjectTypeEnum.kSketchPointObject Then
-                Console.WriteLine("2D Sketchpoint found")
-
-                get2DObjects(TPoint, TLine)
-                createSweep2D(partDoc, TPoint, TLine)
-
-            ElseIf TPoint.Type = ObjectTypeEnum.kSketchPoint3DObject Then
-                Console.WriteLine("3D Sketchpoint found")
-
-                get3DObjects(TPoint, TLine)
-                createSweep3D(partDoc, TPoint, TLine)
-
-            Else
-                MsgBox("Unhandled object selected:" & vbNewLine & [Enum].GetName(GetType(ObjectTypeEnum), TPoint.Type) & vbNewLine & TPoint.Type)
-            End If
-
+        Private Sub m_PiperButton_OnExecute(Context As NameValueMap) Handles m_PiperButton.OnExecute
+            Piper_Module.Execute()
         End Sub
 
-        Private Sub get2DObjects(ByRef targetPoint As Object, ByRef targetLine As Object)
-            If targetPoint.AttachedEntities.Count = 1 Then
-                If targetPoint.AttachedEntities(1).Type = ObjectTypeEnum.kSketchLineObject Or targetPoint.AttachedEntities(1).Type = ObjectTypeEnum.kSketchArcObject Then
-                    targetLine = targetPoint.AttachedEntities(1)
-                    Console.WriteLine("2D Sketchline found")
-                Else
-                    MsgBox("Attached object not recognised")
-                    Exit Sub
-                End If
-            Else
-                Console.WriteLine("More than one attached object found. Exiting.")
-                Exit Sub
-            End If
+        Private Sub m_BulkPDF_OnExecute(Context As NameValueMap) Handles m_BulkPDF.OnExecute
+            BulkPDF_Module.Execute(Context)
         End Sub
 
-        Private Sub get3DObjects(ByRef targetPoint As Object, ByRef targetLine As Object)
-            If targetPoint.AttachedEntities.Count = 1 Then
-                If targetPoint.AttachedEntities(1).Type = ObjectTypeEnum.kSketchLine3DObject Or targetPoint.AttachedEntities(1).Type = ObjectTypeEnum.kSketchArc3DObject Then
-                    targetLine = targetPoint.AttachedEntities(1)
-                    Console.WriteLine("3D Sketchline found")
-                Else
-                    MsgBox("Attached object not recognised")
-                    Exit Sub
-                End If
-            Else
-                Console.WriteLine("More than one attached object found. Exiting.")
-                Exit Sub
-            End If
-        End Sub
-
-        Private Sub createSweep3D(dPart As PartDocument, targetPoint As Object, targetLine As Object)
-
-            Dim WP As WorkPlane
-            Dim SK As Sketch
-            Dim cp As SketchPoint
-            Dim C As SketchCircle
-            Dim cons1 As DiameterDimConstraint
-            Dim cons2 As GeometricConstraint
-            Dim Crad As Double
-            Dim parentSketch As Sketch3D = targetLine.Parent
-
-
-            'Get intended circle diameter
-            Dim allParams As Parameters
-            allParams = dPart.ComponentDefinition.Parameters
-            For Each p As Parameter In allParams
-                If p.Name = "D" Then
-                    Crad = p.Value / 2
-                End If
-            Next
-            If Crad = 0 Then
-                MsgBox("No diameter value found. Exiting.")
-                Exit Sub
-            End If
-
-
-            WP = dPart.ComponentDefinition.WorkPlanes.AddByNormalToCurve(targetLine, targetPoint)
-            WP.Visible = False
-            SK = dPart.ComponentDefinition.Sketches.Add(WP)
-            cp = SK.AddByProjectingEntity(targetPoint)
-            C = SK.SketchCircles.AddByCenterRadius(cp, Crad)
-            cons1 = SK.DimensionConstraints.AddDiameter(C, cp.Geometry)
-            cons2 = SK.GeometricConstraints.AddCoincident(cp, C.CenterSketchPoint)
-
-            'Get path to sweep along
-            Dim CurvColl As ObjectCollection = g_inventorApplication.TransientObjects.CreateObjectCollection
-            For Each e As SketchEntity3D In parentSketch.SketchEntities3D
-                If e.Type = ObjectTypeEnum.kSketchLine3DObject Or e.Type = ObjectTypeEnum.kSketchArc3DObject Then
-                    CurvColl.Add(e)
-                End If
-            Next
-
-            Dim path As Path = dPart.ComponentDefinition.Features.CreateSpecifiedPath(CurvColl)
-            Dim PlanSK As PlanarSketch = SK
-            Dim profile As Profile = PlanSK.Profiles.AddForSolid
-
-            Dim SW As SweepDefinition
-            SW = dPart.ComponentDefinition.Features.SweepFeatures.CreateSweepDefinition(SweepTypeEnum.kPathSweepType, profile, path, PartFeatureOperationEnum.kJoinOperation)
-            dPart.ComponentDefinition.Features.SweepFeatures.Add(SW)
-
-        End Sub
-
-        Private Sub createSweep2D(dPart As PartDocument, targetPoint As Object, targetLine As Object)
-
-            Dim WP As WorkPlane
-            Dim SK As Sketch
-            Dim cp As SketchPoint
-            Dim C As SketchCircle
-            Dim cons1 As DiameterDimConstraint
-            Dim cons2 As GeometricConstraint
-            Dim Crad As Double
-            Dim parentSketch As Sketch = targetLine.Parent
-
-
-            'Get intended circle diameter
-            Dim allParams As Parameters
-            allParams = dPart.ComponentDefinition.Parameters
-            For Each p As Parameter In allParams
-                If p.Name = "D" Then
-                    Crad = p.Value / 2
-                End If
-            Next
-            If Crad = 0 Then
-                MsgBox("No diameter value found. Exiting.")
-                Exit Sub
-            End If
-
-
-            WP = dPart.ComponentDefinition.WorkPlanes.AddByNormalToCurve(targetLine, targetPoint)
-            WP.Visible = False
-            SK = dPart.ComponentDefinition.Sketches.Add(WP)
-            cp = SK.AddByProjectingEntity(targetPoint)
-            C = SK.SketchCircles.AddByCenterRadius(cp, Crad)
-            cons1 = SK.DimensionConstraints.AddDiameter(C, cp.Geometry)
-            cons2 = SK.GeometricConstraints.AddCoincident(cp, C.CenterSketchPoint)
-
-            'Get path to sweep along
-            Dim CurvColl As ObjectCollection = g_inventorApplication.TransientObjects.CreateObjectCollection
-            For Each e As SketchEntity In parentSketch.SketchEntities
-                If e.Type = ObjectTypeEnum.kSketchLineObject Or e.Type = ObjectTypeEnum.kSketchArcObject Then
-                    CurvColl.Add(e)
-                End If
-            Next
-
-            Dim path As Path = dPart.ComponentDefinition.Features.CreateSpecifiedPath(CurvColl)
-            Dim PlanSK As PlanarSketch = SK
-            Dim profile As Profile = PlanSK.Profiles.AddForSolid
-
-            Dim SW As SweepDefinition
-            SW = dPart.ComponentDefinition.Features.SweepFeatures.CreateSweepDefinition(SweepTypeEnum.kPathSweepType, profile, path, PartFeatureOperationEnum.kJoinOperation)
-            dPart.ComponentDefinition.Features.SweepFeatures.Add(SW)
-
-        End Sub
 #End Region
 
     End Class
@@ -274,7 +128,7 @@ End Namespace
 
 Public Module Globals
     ' Inventor application object.
-    Public g_inventorApplication As Inventor.Application
+    Public InvApp As Inventor.Application
 
 #Region "Function to get the add-in client ID."
     ' This function uses reflection to get the GuidAttribute associated with the add-in.
@@ -297,7 +151,7 @@ Public Module Globals
     ' This is primarily used for parenting a dialog to the Inventor window.
     '
     ' For example:
-    ' myForm.Show(New WindowWrapper(g_inventorApplication.MainFrameHWND))
+    ' myForm.Show(New WindowWrapper(InvApp.MainFrameHWND))
     '
     Public Class WindowWrapper
         Implements System.Windows.Forms.IWin32Window
