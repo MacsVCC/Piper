@@ -18,25 +18,85 @@ Module Piper_Module
 
         Console.WriteLine(partDoc.SelectSet.Count & " selected object(s)")
 
-        If partDoc.SelectSet.Count <> 1 Then
-            MsgBox("Select one point to begin")
-            Exit Sub
+
+        If partDoc.SelectSet.Count = 1 Then
+            'Continue
+        Else
+
+            For Each occ In partDoc.SelectSet
+                If partDoc.SelectSet(1).Type = occ.Type Then
+                    'Continue
+                Else
+                    'Mismatching selections found!
+                End If
+            Next
+
         End If
 
         Dim TPoint As Object = partDoc.SelectSet(1)
-        Dim TLine As Object = Nothing
 
         If TPoint.Type = ObjectTypeEnum.kSketchPointObject Then
             Console.WriteLine("2D Sketchpoint found")
 
-            get2DObjects(TPoint, TLine)
-            createSweep2D(partDoc, TPoint, TLine)
+            Dim StartPoints As New ArrayList
+
+            If partDoc.SelectSet.Count = 1 Then
+                StartPoints.Add(partDoc.SelectSet(1))
+            Else
+                If MsgBox("Multiple start points selected. Perform batch sweep?", vbYesNo) = MsgBoxResult.Yes Then
+
+                    For Each occ In partDoc.SelectSet
+                        If occ.Type <> ObjectTypeEnum.kSketchPointObject Then
+                            MsgBox("Not all selected objects are " & [Enum].GetName(GetType(ObjectTypeEnum), TPoint.Type))
+                            Exit Sub
+                        Else
+                            StartPoints.Add(occ)
+                        End If
+                    Next
+
+                Else
+                    Exit Sub
+                End If
+
+            End If
+
+            For Each occ As SketchPoint In StartPoints
+                Dim Line As Object = Nothing
+                Dim Point As Object = occ
+                get2DObjects(Point, Line)
+                createSweep2D(partDoc, TPoint, Line)
+            Next
+
 
         ElseIf TPoint.Type = ObjectTypeEnum.kSketchPoint3DObject Then
             Console.WriteLine("3D Sketchpoint found")
 
-            get3DObjects(TPoint, TLine)
-            createSweep3D(partDoc, TPoint, TLine)
+            Dim StartPoints As New ArrayList
+
+            If partDoc.SelectSet.Count = 1 Then
+                StartPoints.Add(partDoc.SelectSet(1))
+            Else
+                If MsgBox("Multiple start points selected. Continue?", vbYesNo) = MsgBoxResult.Yes Then
+
+                    For Each occ In partDoc.SelectSet
+                        If occ.Type <> ObjectTypeEnum.kSketchPoint3DObject Then
+                            MsgBox("Not all selected objects are " & [Enum].GetName(GetType(ObjectTypeEnum), TPoint.Type))
+                            Exit Sub
+                        Else
+                            StartPoints.Add(occ)
+                        End If
+                    Next
+
+                End If
+
+            End If
+
+            For Each occ As SketchPoint3D In StartPoints
+                Dim Line As Object = Nothing
+                Dim Point As Object = occ
+                get3DObjects(Point, Line)
+                createSweep3D(partDoc, Point, Line)
+            Next
 
         Else
             MsgBox("Unhandled object selected:" & vbNewLine & [Enum].GetName(GetType(ObjectTypeEnum), TPoint.Type) & vbNewLine & TPoint.Type)
