@@ -63,7 +63,7 @@ Module Piper_Module
             For Each occ As SketchPoint In StartPoints
                 Dim Line As Object = Nothing
                 Dim Point As Object = occ
-                get2DObjects(Point, Line)
+                Line = getAttachedLine2D(Point)
                 createSweep2D(partDoc, TPoint, Line)
             Next
 
@@ -94,7 +94,7 @@ Module Piper_Module
             For Each occ As SketchPoint3D In StartPoints
                 Dim Line As Object = Nothing
                 Dim Point As Object = occ
-                get3DObjects(Point, Line)
+                Line = getAttachedLine3D(Point)
                 createSweep3D(partDoc, Point, Line)
             Next
 
@@ -106,35 +106,31 @@ Module Piper_Module
 
 
 
-    Private Sub get2DObjects(ByRef targetPoint As Object, ByRef targetLine As Object)
-        If targetPoint.AttachedEntities.Count = 1 Then
-            If targetPoint.AttachedEntities(1).Type = ObjectTypeEnum.kSketchLineObject Or targetPoint.AttachedEntities(1).Type = ObjectTypeEnum.kSketchArcObject Then
-                targetLine = targetPoint.AttachedEntities(1)
-                Console.WriteLine("2D Sketchline found")
-            Else
-                MsgBox("Attached object not recognised")
-                Exit Sub
-            End If
-        Else
-            Console.WriteLine("More than one attached object found. Exiting.")
-            Exit Sub
+    Private Function getAttachedLine2D(ByRef targetPoint As Object) As SketchLine
+        Dim AttachedLines As New ArrayList
+        For Each L As SketchLine In targetPoint.AttachedEntities
+            AttachedLines.Add(L)
+        Next
+        If AttachedLines.Count = 0 Then
+            MsgBox("No attached lines found.")
         End If
-    End Sub
 
-    Private Sub get3DObjects(ByRef targetPoint As Object, ByRef targetLine As Object)
-        If targetPoint.AttachedEntities.Count = 1 Then
-            If targetPoint.AttachedEntities(1).Type = ObjectTypeEnum.kSketchLine3DObject Or targetPoint.AttachedEntities(1).Type = ObjectTypeEnum.kSketchArc3DObject Then
-                targetLine = targetPoint.AttachedEntities(1)
-                Console.WriteLine("3D Sketchline found")
-            Else
-                MsgBox("Attached object not recognised")
-                Exit Sub
-            End If
-        Else
-            Console.WriteLine("More than one attached object found. Exiting.")
-            Exit Sub
+        Return AttachedLines(0)
+    End Function
+
+    Private Function getAttachedLine3D(ByRef targetPoint As Object) As SketchLine3D
+
+        Dim AttachedLines3D As New ArrayList
+        For Each L As SketchLine3D In targetPoint.AttachedEntities
+            AttachedLines3D.Add(L)
+        Next
+        If AttachedLines3D.Count = 0 Then
+            MsgBox("No attached lines found.")
         End If
-    End Sub
+
+        Return AttachedLines3D(0)
+
+    End Function
 
     Private Sub createSweep3D(dPart As PartDocument, targetPoint As Object, targetLine As Object)
 
