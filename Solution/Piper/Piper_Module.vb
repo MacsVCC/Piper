@@ -21,6 +21,9 @@ Module Piper_Module
 
         If partDoc.SelectSet.Count = 1 Then
             'Continue
+        ElseIf partDoc.SelectSet.Count = 0 Then
+            MsgBox("No Sketchpoints selected")
+            Exit Sub
         Else
 
             For Each occ In partDoc.SelectSet
@@ -33,74 +36,52 @@ Module Piper_Module
 
         End If
 
-        Dim TPoint As Object = partDoc.SelectSet(1)
+        Dim StartPoints As New ArrayList
 
-        If TPoint.Type = ObjectTypeEnum.kSketchPointObject Then
-            Console.WriteLine("2D Sketchpoint found")
-
-            Dim StartPoints As New ArrayList
-
-            If partDoc.SelectSet.Count = 1 Then
+        If partDoc.SelectSet.Count = 1 Then
+            If partDoc.SelectSet(1).Type = ObjectTypeEnum.kSketchPointObject Or partDoc.SelectSet(1).Type = ObjectTypeEnum.kSketchPoint3DObject Then
                 StartPoints.Add(partDoc.SelectSet(1))
             Else
-                If MsgBox("Multiple start points selected. Perform batch sweep?", vbYesNo) = MsgBoxResult.Yes Then
-
-                    For Each occ In partDoc.SelectSet
-                        If occ.Type <> ObjectTypeEnum.kSketchPointObject Then
-                            MsgBox("Not all selected objects are " & [Enum].GetName(GetType(ObjectTypeEnum), TPoint.Type))
-                            Exit Sub
-                        Else
-                            StartPoints.Add(occ)
-                        End If
-                    Next
-
-                Else
-                    Exit Sub
-                End If
-
+                MsgBox("Sketchpoint not found in selection.")
+                Exit Sub
             End If
-
-            For Each occ As SketchPoint In StartPoints
-                Dim Line As Object = Nothing
-                Dim Point As Object = occ
-                Line = getAttachedLine2D(Point)
-                createSweep2D(partDoc, TPoint, Line)
-            Next
-
-
-        ElseIf TPoint.Type = ObjectTypeEnum.kSketchPoint3DObject Then
-            Console.WriteLine("3D Sketchpoint found")
-
-            Dim StartPoints As New ArrayList
-
-            If partDoc.SelectSet.Count = 1 Then
-                StartPoints.Add(partDoc.SelectSet(1))
-            Else
-                If MsgBox("Multiple start points selected. Continue?", vbYesNo) = MsgBoxResult.Yes Then
-
-                    For Each occ In partDoc.SelectSet
-                        If occ.Type <> ObjectTypeEnum.kSketchPoint3DObject Then
-                            MsgBox("Not all selected objects are " & [Enum].GetName(GetType(ObjectTypeEnum), TPoint.Type))
-                            Exit Sub
-                        Else
-                            StartPoints.Add(occ)
-                        End If
-                    Next
-
-                End If
-
-            End If
-
-            For Each occ As SketchPoint3D In StartPoints
-                Dim Line As Object = Nothing
-                Dim Point As Object = occ
-                Line = getAttachedLine3D(Point)
-                createSweep3D(partDoc, Point, Line)
-            Next
-
         Else
-            MsgBox("Unhandled object selected:" & vbNewLine & [Enum].GetName(GetType(ObjectTypeEnum), TPoint.Type) & vbNewLine & TPoint.Type)
+            If MsgBox("Multiple start points selected. Perform batch sweep?", vbYesNo) = MsgBoxResult.Yes Then
+
+                For Each occ In partDoc.SelectSet
+                    If occ.Type <> ObjectTypeEnum.kSketchPointObject And occ.Type <> ObjectTypeEnum.kSketchPoint3DObject Then
+                        MsgBox("Not all selected objects are " & [Enum].GetName(GetType(ObjectTypeEnum), occ.Type))
+                        Exit Sub
+                    Else
+                        StartPoints.Add(occ)
+                    End If
+                Next
+
+            Else
+                Exit Sub
+            End If
+
         End If
+
+
+        For Each occ In StartPoints
+            Dim Line As Object
+            Dim Point As Object = occ
+
+            If Point.Type = ObjectTypeEnum.kSketchPointObject Then
+                Line = getAttachedLine2D(Point)
+                If IsNothing(Line) = False Then
+                    createSweep2D(partDoc, Point, Line)
+                End If
+            ElseIf Point.Type = ObjectTypeEnum.kSketchPoint3dObject Then
+                Line = getAttachedLine3D(Point)
+                If IsNothing(Line) = False Then
+                    createSweep3D(partDoc, Point, Line)
+                End If
+            Else
+                    MsgBox("Somehow a non-point has sneaked throught to the createSweep stage...")
+            End If
+        Next
 
     End Sub
 
@@ -108,11 +89,16 @@ Module Piper_Module
 
     Private Function getAttachedLine2D(ByRef targetPoint As Object) As SketchLine
         Dim AttachedLines As New ArrayList
-        For Each L As SketchLine In targetPoint.AttachedEntities
-            AttachedLines.Add(L)
+
+        For Each L In targetPoint.AttachedEntities
+            If L.Type = ObjectTypeEnum.kSketchLineObject Then
+                AttachedLines.Add(L)
+            End If
         Next
+
         If AttachedLines.Count = 0 Then
             MsgBox("No attached lines found.")
+            Return Nothing
         End If
 
         Return AttachedLines(0)
@@ -121,8 +107,10 @@ Module Piper_Module
     Private Function getAttachedLine3D(ByRef targetPoint As Object) As SketchLine3D
 
         Dim AttachedLines3D As New ArrayList
-        For Each L As SketchLine3D In targetPoint.AttachedEntities
-            AttachedLines3D.Add(L)
+        For Each L In targetPoint.AttachedEntities
+            If L.Type = ObjectTypeEnum.kSketchLine3DObject Then
+                AttachedLines3D.Add(L)
+            End If
         Next
         If AttachedLines3D.Count = 0 Then
             MsgBox("No attached lines found.")
@@ -180,8 +168,10 @@ Module Piper_Module
         'Dim CurveArray As ArrayList = getAttachedLines(0, targetPoint, Nothing, False)
         Dim CurveArray As New ArrayList
 
-        For Each Sc As SketchLine3D In targetPoint.AttachedEntities
-            CurveArray.Add(Sc)
+        For Each Sc In targetPoint.AttachedEntities
+            If Sc.Type = ObjectTypeEnum.kSketchLine3DObject Then
+                CurveArray.Add(Sc)
+            End If
         Next
 
         If CurveArray.Count > 0 Then
@@ -308,11 +298,12 @@ Module Piper_Module
 
     Function get2DPath(ByRef dPart As PartDocument, targetPoint As SketchPoint) As Path
 
-        'Dim CurveArray As ArrayList = getAttachedLines(0, targetPoint, Nothing, False)
         Dim CurveArray As New ArrayList
 
-        For Each Sc As SketchLine In targetPoint.AttachedEntities
-            CurveArray.Add(Sc)
+        For Each Sc In targetPoint.AttachedEntities
+            If Sc.Type = ObjectTypeEnum.kSketchLineObject Then
+                CurveArray.Add(Sc)
+            End If
         Next
 
         If CurveArray.Count > 0 Then
