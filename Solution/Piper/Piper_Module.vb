@@ -83,7 +83,6 @@ Module Piper_Module
         Dim cp As SketchPoint
         Dim C As SketchCircle
         Dim cons1 As DiameterDimConstraint
-        Dim cons2 As GeometricConstraint
         Dim Crad As Double
         Dim parentSketch As Sketch3D = targetLine.Parent
 
@@ -108,17 +107,10 @@ Module Piper_Module
         cp = SK.AddByProjectingEntity(targetPoint)
         C = SK.SketchCircles.AddByCenterRadius(cp, Crad)
         cons1 = SK.DimensionConstraints.AddDiameter(C, cp.Geometry)
-        cons2 = SK.GeometricConstraints.AddCoincident(cp, C.CenterSketchPoint)
+        C.CenterSketchPoint.Merge(cp)
 
-        'Get path to sweep along
-        Dim CurvColl As ObjectCollection = InvApp.TransientObjects.CreateObjectCollection
-        For Each e As SketchEntity3D In parentSketch.SketchEntities3D
-            If e.Type = ObjectTypeEnum.kSketchLine3DObject Or e.Type = ObjectTypeEnum.kSketchArc3DObject Then
-                CurvColl.Add(e)
-            End If
-        Next
 
-        Dim path As Path = dPart.ComponentDefinition.Features.CreateSpecifiedPath(CurvColl)
+        Dim path As Path = get3DPath(dPart, targetPoint)
         Dim PlanSK As PlanarSketch = SK
         Dim profile As Profile = PlanSK.Profiles.AddForSolid
 
@@ -127,6 +119,94 @@ Module Piper_Module
         dPart.ComponentDefinition.Features.SweepFeatures.Add(SW)
 
     End Sub
+    Function get3DPath(ByRef dPart As PartDocument, targetPoint As SketchPoint3D) As Path
+
+        'Dim CurveArray As ArrayList = getAttachedLines(0, targetPoint, Nothing, False)
+        Dim CurveArray As New ArrayList
+
+        For Each Sc As SketchLine3D In targetPoint.AttachedEntities
+            CurveArray.Add(Sc)
+        Next
+
+        If CurveArray.Count > 0 Then
+            Return dPart.ComponentDefinition.Features.CreatePath(CurveArray(0))
+        Else
+            MsgBox("No lines attached to selected point")
+            Return Nothing
+        End If
+
+    End Function
+
+    Function getAttachedLines(recursiveCounter As Integer, beginningPoint As SketchPoint3D, Optional prevLine As SketchLine3D = Nothing, Optional Verbose As Boolean = True) As ArrayList
+
+        'Check for recursion limit
+        If recursiveCounter = 10 Or recursiveCounter >= 10 Then
+            MsgBox("Recursion limit reached!")
+            Return New ArrayList
+        End If
+
+        Dim Coll As New ArrayList
+
+        'Count attached lines
+        Dim counter% = 0
+        For Each Sl As SketchLine3D In beginningPoint.AttachedEntities
+            counter += 1
+            If Verbose Then
+                MsgBox("Recursion level: " & (recursiveCounter + 1) & vbNewLine & "Line: " & (counter + 1) & vbNewLine & Sl.Length)
+            End If
+        Next
+
+        If Verbose Then
+            MsgBox(counter & " attached lines found")
+        End If
+
+        'Check if end of line is reached
+        If IsNothing(prevLine) = False Then
+            If counter = 1 & beginningPoint.AttachedEntities(1).AssociativeID = prevLine.AssociativeID Then
+                'END OF LINE
+                'return empty arraylist
+                Return Coll
+            End If
+        Else
+            'Continue
+        End If
+
+
+        For Each Sl As SketchLine3D In beginningPoint.AttachedEntities
+
+            If IsNothing(prevLine) = False Then
+                If Sl.AssociativeID = prevLine.AssociativeID Then
+                    'Ignore line behind pilot
+                    Continue For
+                End If
+            End If
+
+            'add next line to coll
+            Coll.Add(Sl)
+            If Verbose Then
+                MsgBox("Added " & Sl.Length & " to the collection")
+            End If
+            'get end ppoint of line
+            Dim n As SketchPoint3D
+            If Sl.StartSketchPoint.AssociativeID = beginningPoint.AssociativeID Then
+                n = Sl.EndSketchPoint
+            Else
+                n = Sl.StartSketchPoint
+            End If
+
+            If Verbose Then
+                MsgBox("Following: " & Sl.Length)
+            End If
+            Coll.AddRange(getAttachedLines(recursiveCounter + 1, n, Sl, Verbose))
+            If Verbose Then
+                MsgBox("Returned to: " & Sl.Length)
+            End If
+
+        Next
+
+        Return Coll
+
+    End Function
 
     Private Sub createSweep2D(dPart As PartDocument, targetPoint As Object, targetLine As Object)
 
@@ -135,7 +215,6 @@ Module Piper_Module
         Dim cp As SketchPoint
         Dim C As SketchCircle
         Dim cons1 As DiameterDimConstraint
-        Dim cons2 As GeometricConstraint
         Dim Crad As Double
         Dim parentSketch As Sketch = targetLine.Parent
 
@@ -153,24 +232,15 @@ Module Piper_Module
             Exit Sub
         End If
 
-
         WP = dPart.ComponentDefinition.WorkPlanes.AddByNormalToCurve(targetLine, targetPoint)
         WP.Visible = False
         SK = dPart.ComponentDefinition.Sketches.Add(WP)
         cp = SK.AddByProjectingEntity(targetPoint)
         C = SK.SketchCircles.AddByCenterRadius(cp, Crad)
         cons1 = SK.DimensionConstraints.AddDiameter(C, cp.Geometry)
-        cons2 = SK.GeometricConstraints.AddCoincident(cp, C.CenterSketchPoint)
+        C.CenterSketchPoint.Merge(cp)
 
-        'Get path to sweep along
-        Dim CurvColl As ObjectCollection = InvApp.TransientObjects.CreateObjectCollection
-        For Each e As SketchEntity In parentSketch.SketchEntities
-            If e.Type = ObjectTypeEnum.kSketchLineObject Or e.Type = ObjectTypeEnum.kSketchArcObject Then
-                CurvColl.Add(e)
-            End If
-        Next
-
-        Dim path As Path = dPart.ComponentDefinition.Features.CreateSpecifiedPath(CurvColl)
+        Dim path As Path = get2DPath(dPart, targetPoint)
         Dim PlanSK As PlanarSketch = SK
         Dim profile As Profile = PlanSK.Profiles.AddForSolid
 
@@ -180,5 +250,22 @@ Module Piper_Module
 
     End Sub
 
+    Function get2DPath(ByRef dPart As PartDocument, targetPoint As SketchPoint) As Path
+
+        'Dim CurveArray As ArrayList = getAttachedLines(0, targetPoint, Nothing, False)
+        Dim CurveArray As New ArrayList
+
+        For Each Sc As SketchLine In targetPoint.AttachedEntities
+            CurveArray.Add(Sc)
+        Next
+
+        If CurveArray.Count > 0 Then
+            Return dPart.ComponentDefinition.Features.CreatePath(CurveArray(0))
+        Else
+            MsgBox("No lines attached to selected point")
+            Return Nothing
+        End If
+
+    End Function
 
 End Module

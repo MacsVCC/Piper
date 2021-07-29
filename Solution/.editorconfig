@@ -1,0 +1,4 @@
+﻿[*.vb]
+
+# BC2001: file 'C:\Users\macs\source\repos\MacsVCC\Piper\Solution\My Project\BulkPDF_Module.vb' could not be found
+dotnet_diagnostic.BC2001.severity = none

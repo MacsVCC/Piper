@@ -16,6 +16,15 @@ Module BulkPDF_Module
             End If
         Next
 
+
+        ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''' TESTING
+        Dim F As New BulkPDF_Form
+        F.DocumentList = Drgs
+        F.ShowDialog()
+        Exit Sub
+        ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''' TESTING
+
+
         If MsgBox("Drawings found: " & msg & vbNewLine & "Continue?", vbYesNo) = MsgBoxResult.No Then
             Exit Sub
         End If
@@ -26,12 +35,12 @@ Module BulkPDF_Module
         End If
 
         For Each D As DrawingDocument In Drgs
-            Export(D, Overwrite)
+            Export(D, F.OverwriteAll)
         Next
 
     End Sub
 
-    Private Sub Export(Doc As DrawingDocument, overwriteAll As Boolean)
+    Private Sub Export(Doc As DrawingDocument, overwriteAll As Boolean, Optional PDFName As String = "")
 
         If Doc.DocumentType = DocumentTypeEnum.kDrawingDocumentObject Then
             Dim drawDoc As Inventor.DrawingDocument = Doc
@@ -52,7 +61,13 @@ Module BulkPDF_Module
             nvmOptions = InvApp.TransientObjects.CreateNameValueMap
             Dim dm As DataMedium
             dm = InvApp.TransientObjects.CreateDataMedium
-            dm.FileName = Doc.FullFileName.Replace(".idw", "") & " R" & Doc.Sheets(1).Revision & ".pdf"
+
+            If PDFName = "" Then
+                dm.FileName = Doc.FullFileName.Replace(".idw", "") & " R" & Doc.Sheets(1).Revision & ".pdf"
+            Else
+                dm.FileName = PDFName
+            End If
+
 
             If overwriteAll = False Then
                 If My.Computer.FileSystem.FileExists(dm.FileName) Then
@@ -70,21 +85,21 @@ Module BulkPDF_Module
             End If
 
             If PDFAddin.HasSaveCopyAsOptions(drawDoc, tContext, nvmOptions) Then
-                    With nvmOptions
-                        .Value("All_Color_AS_Black") = 0
-                        .Value("Remove_Line_Weights") = 0
-                        .Value("Vector_Resolution") = 400
-                        .Value("Sheet_Range") = Inventor.PrintRangeEnum.kPrintAllSheets
-                    End With
+                With nvmOptions
+                    .Value("All_Color_AS_Black") = 0
+                    .Value("Remove_Line_Weights") = 0
+                    .Value("Vector_Resolution") = 400
+                    .Value("Sheet_Range") = Inventor.PrintRangeEnum.kPrintAllSheets
+                End With
 
-                    Try
-                        PDFAddin.SaveCopyAs(drawDoc, tContext, nvmOptions, dm)
-                    Catch ex As Exception
-                        MsgBox("Error removing or writing file; perhaps existing file can't be overwritten.  Skipping file.")
-                    End Try
-                End If
-
+                Try
+                    PDFAddin.SaveCopyAs(drawDoc, tContext, nvmOptions, dm)
+                Catch ex As Exception
+                    MsgBox("Error removing or writing file; perhaps existing file can't be overwritten.  Skipping file.")
+                End Try
             End If
+
+        End If
 
     End Sub
 

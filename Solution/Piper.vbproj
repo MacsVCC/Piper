@@ -89,16 +89,23 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AssemblyInfo.vb" />
-    <Compile Include="My Project\BulkPDF_Module.vb" />
+    <Compile Include="BulkPDF\BulkPDF_Form.Designer.vb">
+      <DependentUpon>BulkPDF_Form.vb</DependentUpon>
+    </Compile>
+    <Compile Include="BulkPDF\BulkPDF_Form.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="BulkPDF\BulkPDF_Module.vb" />
     <Compile Include="My Project\Resources.Designer.vb">
       <AutoGen>True</AutoGen>
       <DesignTime>True</DesignTime>
       <DependentUpon>Resources.resx</DependentUpon>
     </Compile>
-    <Compile Include="Piper_Module.vb" />
+    <Compile Include="Piper\Piper_Module.vb" />
     <Compile Include="StandardAddInServer.vb" />
   </ItemGroup>
   <ItemGroup>
+    <None Include=".editorconfig" />
     <None Include="Piper.X.manifest" />
   </ItemGroup>
   <ItemGroup>
@@ -139,6 +146,9 @@
     </COMReference>
   </ItemGroup>
   <ItemGroup>
+    <EmbeddedResource Include="BulkPDF\BulkPDF_Form.resx">
+      <DependentUpon>BulkPDF_Form.vb</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="My Project\Resources.resx">
       <CustomToolNamespace>My.Resources</CustomToolNamespace>
       <Generator>VbMyResourcesResXFileCodeGenerator</Generator>
